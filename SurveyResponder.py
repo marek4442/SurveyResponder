@@ -11,6 +11,8 @@ import json
 import pandas as pd
 import warnings
 from tqdm import tqdm
+import asyncio
+import aiohttp
 
 def load_persona_file(file_path: str) -> Dict:
     """Load persona definitions from a JSON file.
@@ -86,7 +88,7 @@ class SurveyResponder:
         self.num_responses = num_responses
         self.temperature = temperature
         self.max_try = max_try
-        
+        self.session=None
         # Load questions and persona dictionary
         self.questions = load_questions(questions_path)
         self.persona_dict = load_persona_file(persona_path)
@@ -284,7 +286,43 @@ Be sure to consider the  full range of options including:
             "persona_traits": list(self.persona_dict.keys())
         }
 
-    def run(self) -> pd.DataFrame:
+    async def the_async_call(self,prompt: str) -> str:
+        try:
+          async with self.session.post(
+              self.base_url,
+              json={
+                  "model": self.model_name,
+                  "prompt": prompt,
+                  "stream": False,
+                  "temperature": self.temperature
+                  },
+        
+            ) as response:
+                if response.status !=200:
+                  warnings.warn(f"Api bad")
+                  return "ERROR"
+                data=await response.json()
+                result = data.get("response","ERROR")
+                if result is None or result =="":
+                  return "ERROR"
+                return result.strip()
+        
+        except requests.exceptions.HTTPError as e:
+          if e.response.status_code == 404:
+            raise ConnectionError(
+                    f"404 Error: Common reason is model ('{self.model_name}') not found. "
+                    "This may mean the model name is not available. Try 'ollama pull <model_name>'"
+                    "or 'ollama list' to check available models with 'ollama list'")
+            raise ConnectionError(f"HTTP Error: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Failed to connect to Ollama: {str(e)}")
+    
+        
+
+
+            
+
+    async def run(self) -> pd.DataFrame:
         """Generate synthetic survey responses and return as a DataFrame.
         
         If any errors occur during generation, warnings will be issued. Processing will stop
@@ -305,8 +343,8 @@ Be sure to consider the  full range of options including:
         
         # Initialize error counter
         error_count = 0
-        
         # Generate responses
+        self.session=aiohttp.ClientSession()
         for n in tqdm(range(self.num_responses), desc="Generating responses", unit="response"):
             try:
                 # Create a respondent ID
@@ -317,8 +355,16 @@ Be sure to consider the  full range of options including:
                 
                 # Prepare the row with resid and persona traits
                 row_data = [resid, self.model_name] + [str(persona_traits.get(key, "")) for key in self.persona_dict.keys()]
-                
-                # Process each question
+                prompts=[self._generate_prompt(q,persona_descriptions) for q in self.questionList]
+            
+                tasks=[self.the_async_call(q) for q in prompts]
+               
+                result=await asyncio.gather(*tasks)
+                row_data.extend(result)
+                data.append(row_data)
+
+          
+                """
                 for question in self.questions:
                     try:
                         result = self.process_question(question, persona_traits, persona_descriptions)
@@ -346,6 +392,7 @@ Be sure to consider the  full range of options including:
                     data.append(row_data)
                 else:
                     break
+                """
                 
             except Exception as e:
                 error_count += 1
@@ -355,17 +402,15 @@ Be sure to consider the  full range of options including:
                         f"Stopping after {error_count} consecutive errors. "
                         f"Returning {len(data)} successful responses."
                     )
-                    break
-        
-        if not data:
-            raise RuntimeError(
-                f"Failed to generate any valid responses after {error_count} consecutive errors. "
-                "Check if Ollama is running and the model is available."
-            )
-        
+                    
+            
+          
+
+        await self.session.close()
         # Create DataFrame
-        df = pd.DataFrame(data, columns=columns)
-        return df
+        df = pd.DataFrame(data,columns=columns)
+  
+        return data
 
     def run_write(self, output_file: str) -> pd.DataFrame:
         """Generate synthetic survey responses, write to file as they're generated, and return as DataFrame.
