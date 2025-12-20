@@ -285,9 +285,14 @@ Be sure to consider the  full range of options including:
             "num_questions": len(self.questions),
             "persona_traits": list(self.persona_dict.keys())
         }
-
+    
     async def the_async_call(self,prompt: str) -> str:
+        """
+        Asynchrnous function that uses a context manager
+        This is to test
+        """
         try:
+
           async with self.session.post(
               self.base_url,
               json={
@@ -345,63 +350,41 @@ Be sure to consider the  full range of options including:
         error_count = 0
         # Generate responses
         self.session=aiohttp.ClientSession()
-        for n in tqdm(range(self.num_responses), desc="Generating responses", unit="response"):
-            try:
-                # Create a respondent ID
-                resid = str(uuid.uuid4())
-                
-                # Create a persona for this respondent
-                persona_traits, persona_descriptions = generate_persona_from_file(self.persona_dict)
-                
-                # Prepare the row with resid and persona traits
-                row_data = [resid, self.model_name] + [str(persona_traits.get(key, "")) for key in self.persona_dict.keys()]
-                prompts=[self._generate_prompt(q,persona_descriptions) for q in self.questionList]
-            
-                tasks=[self.the_async_call(q) for q in prompts]
-               
-                result=await asyncio.gather(*tasks)
-                row_data.extend(result)
-                data.append(row_data)
+        
+        batch_size=max(1,200//len(self.questions))
+        
+        for batch_id in tqdm(range(0,self.num_responses,batch_size), desc="Generating batches", unit="batches"):
+            batchEnd=min(self.num_responses,batch_size+batch_id)
+            batch_data=[]
+            rows=[]
+            for person_num in range(batch_id,batchEnd):
+              try:
+                   # Create a respondent ID
+                  resid = str(uuid.uuid4())
+                  
+                  # Create a persona for this respondent
+                  persona_traits, persona_descriptions = generate_persona_from_file(self.persona_dict)
+                  
+                  # Prepare the row with resid and persona traits
+                  row_data = [resid, self.model_name] + [str(persona_traits.get(key, "")) for key in self.persona_dict.keys()]
+                  prompts=[self._generate_prompt(q,persona_descriptions) for q in self.questions]
+              
+                  batch_data.extend([self.the_async_call(q) for q in prompts])
 
-          
-                """
-                for question in self.questions:
-                    try:
-                        result = self.process_question(question, persona_traits, persona_descriptions)
-                        row_data.append(result.get('response', 'ERROR'))
-                        error_count = 0 
-                    except Exception as e:
-                        error_count += 1
-                        warnings.warn(f"Error processing question '{question}': {str(e)}")
-                        row_data.append("ERROR")
-                        
-                        if error_count >= self.max_try:
-                            warnings.warn(
-                                f"Stopping after {error_count} consecutive errors. "
-                                f"Returning {len(data)} successful responses."
-                            )
-                            # Pad row_data with 'INCOMPLETE' if it's shorter than expected
-                            if len(row_data) < len(columns):
-                                row_data.extend(['INCOMPLETE'] * (len(columns) - len(row_data)))
-                            # Add partial response if we have any answers
-                            if any(x != "ERROR" for x in row_data):
-                                data.append(row_data)
-                            break
+                  rows.append(row_data)
 
-                if error_count < self.max_try:
-                    data.append(row_data)
-                else:
-                    break
-                """
-                
-            except Exception as e:
-                error_count += 1
-                warnings.warn(f"Error generating response {n+1}: {str(e)}")
-                if error_count >= self.max_try:
-                    warnings.warn(
-                        f"Stopping after {error_count} consecutive errors. "
-                        f"Returning {len(data)} successful responses."
-                    )
+              except Exception as e:
+                  error_count += 1
+                  warnings.warn(f"Error generating response {person_num+1}: {str(e)}")
+                  if error_count >= self.max_try:
+                      warnings.warn(
+                            f"Stopping after {error_count} consecutive errors. "
+                            f"Returning {len(data)} successful responses."
+                        )
+            result=await asyncio.gather(*batch_data)
+            print(result)
+
+
                     
             
           
