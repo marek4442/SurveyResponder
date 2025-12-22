@@ -395,7 +395,7 @@ Be sure to consider the  full range of options including:
                 return result.strip()
         
         except aiohttp.ClientError as e:
-          if e.status == 404:
+          if response.status == 404:
             raise ConnectionError(
                     f"404 Error: Common reason is model ('{self.model_name}') not found. "
                     "This may mean the model name is not available. Try 'ollama pull <model_name>'"
