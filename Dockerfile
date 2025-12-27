@@ -2,6 +2,16 @@ FROM python:3.12-slim
 
 
 WORKDIR /app
+RUN curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/SurveyResponder.py
+RUN curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/requirements.txt
+RUN curl -O curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/persona.json
+RUN curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/questions.txt
+RUN curl -O https://raw.githubusercontent.com/marek4442/SurveyResponder/batching/start.sh
+
+COPY SurveyResponder.py /SurveyResponder.py
+COPY requirements.txt /requirements.txt
+COPY persona.json /persona.json
+COPY questions.txt /questions.txt
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 COPY . .
