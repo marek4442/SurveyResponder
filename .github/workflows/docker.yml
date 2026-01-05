@@ -25,9 +25,19 @@ jobs:
           import SurveyResponder
           print("SurveyResponder module imported successfully.")
           EOF
-      - name: Verify CLI
+      - name: Verify CLI Exists
         run: |
           docker run --rm surveyresponder:test python cli.py --help
+     
+      - name: Verify Start Script Execution
+        run: |
+          timeout 30s docker run --rm -p 11434:11434 surveyresponder:test bash start.sh || [ $? -eq 124 ] 
+      - name: Verify CLI Starts
+        run: |
+          bash -c "run ollama serve & && sleep 10 && 
+          until  curl -s http://localhost:11434/api/tags > /dev/null; do sleep 1;done"
+          timeout 60s docker run --rm network host surveyresponder:test bash -c "python cli.py run -persona persona.json -questions questions.txt -model llava-llama3:latest -num-responses 1 -output test_results.csv -temperature 1.0 -response-options "Yes,No,Maybe" &&rm test_results.csv"
+  
         
         
       
