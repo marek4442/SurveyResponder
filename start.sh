@@ -9,4 +9,12 @@ done
 echo "Ollama is up and running."
 ollama pull llama3.1:latest
 
-python SurveyResponder.py run
+python surveyresponder run \
+  --questions questions.txt \
+  --persona persona.json \
+  --model llava-llama3:latest \
+  --num-responses 100 \
+  --output results.csv \
+  --temperature 1.0 \
+  --response-options "Never,Rarely,Sometimes,Often,Always"
+echo "Survey responses have been generated and saved to results.csv."
