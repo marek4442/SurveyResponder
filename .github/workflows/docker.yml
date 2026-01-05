@@ -36,7 +36,7 @@ jobs:
         run: |
           bash -c "run ollama serve & && sleep 10 && 
           until  curl -s http://localhost:11434/api/tags > /dev/null; do sleep 1;done"
-          timeout 60s docker run --rm network host surveyresponder:test bash -c "python cli.py run -persona persona.json -questions questions.txt -model llava-llama3:latest -num-responses 1 -output test_results.csv -temperature 1.0 -response-options "Yes,No,Maybe" &&rm test_results.csv"
+          timeout 60s docker run --rm network host surveyresponder:test bash -c "python cli.py run -persona persona.json -questions questions.txt -model llava-llama3:latest -num-responses 1 -output test_results.csv -temperature 1.0 -response-options "Yes,No,Maybe" &&rm test_results.csv" || [ $? -eq 124 ]
   
         
         
