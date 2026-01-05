@@ -32,11 +32,7 @@ jobs:
       - name: Verify Start Script Execution
         run: |
           timeout 30s docker run --rm -p 11434:11434 surveyresponder:test bash start.sh || [ $? -eq 124 ] 
-      - name: Cache Ollama Models
-        uses: actions/cache@v3
-        with: 
-          path: ~/.ollama
-          key: ollama-models-${{runner.os}}-tiny
+     
       - name: Verify CLI Starts
         run: |
           curl -fsSL https://ollama.ai/install.sh |  sh
@@ -46,7 +42,7 @@ jobs:
             sleep 2; 
           done
           ollama pull tinydolphin
-          timeout 60s docker run --rm --network host surveyresponder:test bash -c "python cli.py run -persona persona.json -questions questions.txt -model tinydolphin -num-responses 1 -output test_results.csv -temperature 1.0 -response-options 'Yes,No,Maybe' && rm test_results.csv" || [ $? -eq 124 ]
+          timeout 60s docker run --rm --network host surveyresponder:test bash -c "python cli.py run --persona persona.json --questions questions.txt --model tinydolphin --num-responses 1 --temperature 1.0 -response-options 'Yes,No,Maybe' --output test_results.csv && rm test_results.csv" || [ $? -eq 124 ]
   
         
         
