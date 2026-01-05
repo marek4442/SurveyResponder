@@ -9,7 +9,7 @@ done
 echo "Ollama is up and running."
 ollama pull llama3.1:latest
 
-python surveyresponder run \
+python cli run \
   --questions questions.txt \
   --persona persona.json \
   --model llava-llama3:latest \
