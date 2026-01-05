@@ -11,8 +11,11 @@ import json
 import pandas as pd
 import warnings
 from tqdm import tqdm
+import asyncio
+import aiohttp
 import argparse
 import sys
+
 def load_persona_file(file_path: str) -> Dict:
     """Load persona definitions from a JSON file.
     
@@ -87,7 +90,7 @@ class SurveyResponder:
         self.num_responses = num_responses
         self.temperature = temperature
         self.max_try = max_try
-
+        self.session=None
         # Load questions and persona dictionary
         self.questions = load_questions(questions_path)
         self.persona_dict = load_persona_file(persona_path)
@@ -136,11 +139,11 @@ class SurveyResponder:
             str: Formatted prompt for the LLM.
         """
         persona_description = "You are a someone " + ", ".join(persona_descriptions) + "."
-        return f"""{persona_description}
+        return f"""{persona_description}\n
 
 Question: {question}
         
-Please select ONE of the following responses that best matches your opinion:
+Please select ONE of the following responses that best matches your opinion:\n
 {', '.join(self.response_options)}
 
 Respond with ONLY one of the above options, nothing else.
@@ -284,7 +287,6 @@ Be sure to consider the  full range of options including:
             "num_questions": len(self.questions),
             "persona_traits": list(self.persona_dict.keys())
         }
-
     def run(self) -> pd.DataFrame:
         """Generate synthetic survey responses and return as a DataFrame.
         
@@ -367,6 +369,130 @@ Be sure to consider the  full range of options including:
         # Create DataFrame
         df = pd.DataFrame(data, columns=columns)
         return df
+
+    
+    async def the_async_call(self,prompt: str) -> str:
+        """
+        Asynchrnous function that uses a context manager
+        This is to test
+        """
+        try:
+          async with self.session.post(
+              self.base_url,
+              json={
+                  "model": self.model_name,
+                  "prompt": prompt,
+                  "stream": False,
+                  "temperature": self.temperature
+                  },
+        
+            ) as response:
+                if response.status !=200:
+                  warnings.warn(f"Api bad")
+                  return "ERROR"
+                data=await response.json()
+                result = data.get("response","ERROR")
+                if result is None or result =="":
+                  return "ERROR"
+                return result.strip()
+        
+        except aiohttp.ClientError as e:
+          if response.status == 404:
+            raise ConnectionError(
+                    f"404 Error: Common reason is model ('{self.model_name}') not found. "
+                    "This may mean the model name is not available. Try 'ollama pull <model_name>'"
+                    "or 'ollama list' to check available models with 'ollama list'")
+          else:
+              raise ConnectionError(f"HTTP Error: {str(e)}")
+        
+
+
+            
+
+    async def batch_run(self) -> pd.DataFrame:
+        """Generate synthetic survey responses and return as a DataFrame.
+        
+        If any errors occur during generation, warnings will be issued. Processing will stop
+        if max_try consecutive errors are encountered. The DataFrame will include all
+        successfully generated responses up to that point.
+        
+        Returns:
+            pd.DataFrame: DataFrame containing all generated responses
+            
+        Raises:
+            RuntimeError: If no valid responses could be generated
+        """
+        # Create header for the dataframe
+        columns = ["resid", "model"] + list(self.persona_dict.keys()) + [f"Q{i+1}" for i in range(len(self.questions))]
+        
+        # Initialize empty lists to store the data
+        data = []
+        
+        # Initialize error counter
+        error_count = 0
+        # Generate responses and limit the amount of concurrent connectiions
+        self.session=aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=100,use_dns_cache=True))
+        
+        #Set bach size based on number of questions to avoid overload
+        batch_size=max(10,200//len(self.questions))
+        
+        person_data=[]
+        semaphore=asyncio.Semaphore(20)
+        async def run_with_semaphore(prompt: str):
+            #Limit the amount of concurrent calls
+            async with semaphore:
+              return await self.the_async_call(prompt)
+
+        for _ in range(self.num_responses):
+            resid = str(uuid.uuid4())
+             # Create a persona for this respondent
+            persona_traits, persona_descriptions = generate_persona_from_file(self.persona_dict)
+            # Prepare the row with resid and persona traits
+            row_data = [resid, self.model_name] + [str(persona_traits.get(key, "")) for key in self.persona_dict.keys()]
+            prompts=[self._generate_prompt(q,persona_descriptions) for q in self.questions]
+            person_data.append((row_data,prompts))
+                
+        for batch_id in tqdm(range(0,self.num_responses,batch_size), desc="Generating batches", unit="batches"):
+            batchEnd=min(self.num_responses,batch_size+batch_id)
+            batch_data=[]
+            rows=[]
+            for person_num in range(batch_id,batchEnd):
+              try:
+                  row_data, prompts=person_data[person_num]
+                  batch_data.extend([run_with_semaphore(q) for q in prompts])
+                  rows.append(row_data)
+
+              except Exception as e:
+                  error_count += 1
+                  warnings.warn(f"Error generating response {person_num+1}: {str(e)}")
+                  if error_count >= self.max_try:
+                      warnings.warn(
+                            f"Stopping after {error_count} consecutive errors. "
+                            f"Returning {len(data)} successful responses."
+                        )
+                      break
+            result=await asyncio.gather(*batch_data,return_exceptions=True)
+            num_q=len(self.questions)
+            transformed=[result[i:i+num_q] for i in range(0, len(result), num_q)]
+            ec=[isinstance(i,Exception) for i in result]
+            if ec is not None and sum(ec)>self.max_try:
+                warnings.warn(
+                            f"Stopping after {error_count} consecutive errors. "
+                            f"Returning {len(data)} successful responses."
+                        )
+                break
+            for index,responses in enumerate(transformed):
+                rows[index].extend(responses)
+            data.extend(rows)
+                          
+        await self.session.close()
+        # Create DataFrame
+        df = pd.DataFrame(data,columns=columns)
+  
+        return df
+    
+
+
 
     def run_write(self, output_file: str) -> pd.DataFrame:
         """Generate synthetic survey responses, write to file as they're generated, and return as DataFrame.
