@@ -8,7 +8,7 @@ RUN curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/mai
 RUN curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/persona.json
 RUN curl -O https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/questions.txt
 RUN curl -O https://raw.githubusercontent.com/marek4442/SurveyResponder/batching/start.sh
-RUN curl -o https://raw.githubusercontent.com/adamrossnelson/SurveResponder/main/cli.py
+RUN curl -o https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/main/cli.py
 COPY SurveyResponder.py /SurveyResponder.py
 COPY requirements.txt /requirements.txt
 COPY persona.json /persona.json
