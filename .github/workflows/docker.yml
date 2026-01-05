@@ -68,10 +68,10 @@ jobs:
         run: docker build -t surveyresponder:test .
       - name: Tag and push
         run: |
-          docker tag surveyresponder:test ${{secrets.DOCKER_USERNAME}}/surveyresponder:latest
-          docker tag surveyresponder:test ${{secrets.DOCKER_USERNAME}}/surveyresponder:${{github.sha}}
-          docker push ${{secrets.DOCKER_USERNAME}}/surveyresponder:${{github.sha}}
-          docker push ${{secrets.DOCKER_USERNAME}}/surveyresponder:latest
+          docker tag surveyresponder:test ${{secrets.DOCKER_USERNAME}}/survey-responder:latest
+          docker tag surveyresponder:test ${{secrets.DOCKER_USERNAME}}/survey-responder:${{github.sha}}
+          docker push ${{secrets.DOCKER_USERNAME}}/survey-responder:${{github.sha}}
+          docker push ${{secrets.DOCKER_USERNAME}}/survey-responder:latest
        
 
 
