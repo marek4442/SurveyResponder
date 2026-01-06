@@ -17,8 +17,14 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker Image
-        run: docker build -t surveyresponder:test .
+      - name: Build Docker Image for testing
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true 
+          tags: surveyresponder:test
+          platforms: linux/amd64
       - name: Run Tests
         run: |
           docker run --rm surveyresponder:test python - <<EOF
@@ -43,18 +49,27 @@ jobs:
           done
           ollama pull tinydolphin
           timeout 60s docker run --rm --network host surveyresponder:test bash -c "python cli.py run --persona persona.json --questions questions.txt --model tinydolphin --num-responses 1 --temperature 1.0 --response-options 'Yes,No,Maybe' --output test_results.csv && rm test_results.csv" || [ $? -eq 124 ]
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop ollama || true
+          docker rm ollama || true
+
   
         
         
       
 
-  docker:
+  docker-publish:
     needs: docker-test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set Up Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -64,19 +79,19 @@ jobs:
             username: ${{ secrets.DOCKER_USERNAME }}
             password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker Image
-        run: docker build -t surveyresponder:test .
-      - name: Tag and push
-        run: |
-          docker tag surveyresponder:test ${{secrets.DOCKER_USERNAME}}/survey-responder:latest
-          docker tag surveyresponder:test ${{secrets.DOCKER_USERNAME}}/survey-responder:${{github.sha}}
-          docker push ${{secrets.DOCKER_USERNAME}}/survey-responder:${{github.sha}}
-          docker push ${{secrets.DOCKER_USERNAME}}/survey-responder:latest
+      - name: Build Docker Image Multi-Platform
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true 
+          tags: |
+            ${{secrets.DOCKER_USERNAME}}/survey-responder:latest
+            ${{secrets.DOCKER_USERNAME}}/survey-responder:${{github.sha}}
+          platforms: linux/amd64,linux/arm64
        
 
 
 
 
-      
     
 
