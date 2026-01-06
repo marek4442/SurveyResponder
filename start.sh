@@ -7,12 +7,12 @@ until curl -s http://localhost:11434/api/tags > /dev/null; do
   sleep 1
 done
 echo "Ollama is up and running."
-ollama pull llama3.1:latest
+ollama pull tinydolphin
 
 python cli.py run \
   --questions questions.txt \
   --persona persona.json \
-  --model llava-llama3:latest \
+  --model tinydolphin \
   --num-responses 100 \
   --output results.csv \
   --temperature 1.0 \
