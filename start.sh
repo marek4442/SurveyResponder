@@ -7,9 +7,11 @@ until curl -s http://localhost:11434/api/tags > /dev/null; do
   sleep 1
 done
 echo "Ollama is up and running."
-ollama pull tinydolphin
- 
-until curl -s http://localhost:11434/api/models/tinydolphin > /dev/null; do
+
+
+ollama pull tinydolphin:latest
+
+ until ollama list | grep -q tinydolphin:latest; do
   sleep 2
 done
 echo "Model tinydolphin is loaded."
