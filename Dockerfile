@@ -50,7 +50,7 @@ RUN curl -fsSL https://ollama.ai/install.sh -o install.sh && \
     rm install.sh && \
     chown -R appuser:appuser /usr/local/bin/ollama
 
-RUN chown -R appuser:appuser ${which ollama} || true
+RUN chown -R appuser:appuser $(which ollama) || true
 
 USER appuser
 
