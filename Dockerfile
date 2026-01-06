@@ -9,7 +9,7 @@ RUN apt-get update && \
  rm -rf /var/lib/apt/lists/*
 
 ARG ADAM_COMMIT=99f71a46e98d5f92e6cd28c25e145afbbbc11e84
-ARG MAREK_COMMIT=4a096e9b7f66b8aa106ebaab18f3b9464d9b2d84
+ARG MAREK_COMMIT=a5b1e7847980add3d23d53183509dec64fb44383
 ARG ADAM_URL=https://raw.githubusercontent.com/adamrossnelson/SurveyResponder/${ADAM_COMMIT}
 ARG MAREK_URL=https://raw.githubusercontent.com/marek4442/SurveyResponder/${MAREK_COMMIT}
 
