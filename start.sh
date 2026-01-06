@@ -19,7 +19,7 @@ python cli.py run \
   --questions questions.txt \
   --persona persona.json \
   --model tinydolphin:latest \
-  --num-responses 100 \
+  --num-responses 4 \
   --output results.csv \
   --temperature 1.0 \
   --response-options "Never,Rarely,Sometimes,Often,Always"
