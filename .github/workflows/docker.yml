@@ -37,8 +37,7 @@ jobs:
      
       - name: Verify Start Script Execution
         run: |
-
-          timeout 30s docker run --rm -p 11434:11434 surveyresponder:test bash start.sh || [ $? -eq 124 ] 
+          timeout 180s docker run --rm -p 11434:11434 surveyresponder:test bash start.sh || [ $? -eq 124 ] 
      
       - name: Verify CLI Starts
         run: |
