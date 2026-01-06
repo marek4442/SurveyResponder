@@ -18,7 +18,7 @@ echo "Model tinydolphin is loaded."
 python cli.py run \
   --questions questions.txt \
   --persona persona.json \
-  --model tinydolphin \
+  --model tinydolphin:latest \
   --num-responses 100 \
   --output results.csv \
   --temperature 1.0 \
